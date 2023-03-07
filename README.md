@@ -1,6 +1,6 @@
 # ai.py
 
-Single-file Python script that helps you get answers from ChatGPT API.
+Single-file Python script that helps you get answers from ChatGPT API in the command line.
 
 Features:
 - Save predefined prompts and refer to them with shortcuts
