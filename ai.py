@@ -69,36 +69,32 @@ def main():
             exit(1)
 
     # load prompts
-    prompts_store = PromptsStore()
-    prompts_store.load_from_file()
+    pm = PromptsManager()
+    pm.load_from_file()
 
     # create session
-    system_prompt = args.system
-    if system_prompt.startswith('@'):
-        system_prompt = prompts_store.get('system', system_prompt[1:])
-
-    session = ChatSession(Config.api_key, messages=new_messages(system_prompt))
+    session = ChatSession(Config.api_key, messages=pm.new_messages(args.system))
     if args.verbose:
         for i in session.messages:
             print_message(i)
 
     # call the function
     if args.prompt:
-        chat_once(session, args.prompt)
+        chat_once(session, pm, args.prompt)
     else:
-        repl(session)
+        repl(session, pm)
 
 
-def chat_once(session, prompt):
+def chat_once(session, pm, prompt):
     try:
-        res_message = session.chat(prompt)
+        res_message = session.chat(pm.new_user_message(prompt))
     except TimeoutError:
         print(red('ERROR: timeout'))
         return
     print_message(res_message)
 
 
-def repl(session):
+def repl(session, pm):
     pass
 
 
@@ -131,18 +127,12 @@ def print_message(message):
     print(s + '\n')
 
 
-def new_messages(system_message):
-    if system_message:
-        return [{
-            'role': 'system',
-            'content': system_message,
-        }]
-    return []
-
-
 # Prompts #
 
-class PromptsStore:
+shortcut_re = re.compile(r'@(\w+)')
+
+
+class PromptsManager:
     def __init__(self):
         self.data = {}
 
@@ -152,8 +142,30 @@ class PromptsStore:
             with open(prompts_file) as f:
                 self.data = json.load(f)
 
-    def get(self, role, name):
+    def get(self, role, name, default=None):
         return self.data.get(role, {})[name]
+
+    def format_prompt(self, prompt, role):
+        def handle_match(m):
+            try:
+                return self.get(role, m.group(1))
+            except KeyError:
+                return m.group(0)
+        return shortcut_re.sub(handle_match, prompt)
+
+    def new_messages(self, system_prompt):
+        if system_prompt:
+            return [{
+                'role': 'system',
+                'content': self.format_prompt(system_prompt, 'system'),
+            }]
+        return []
+
+    def new_user_message(self, prompt):
+        return {
+            'role': 'user',
+            'content': self.format_prompt(prompt, 'user'),
+        }
 
 
 # Session #
@@ -167,12 +179,8 @@ class ChatSession:
             messages = []
         self.messages = messages
 
-    def chat(self, content, params=None):
-        message = {
-            'role': 'user',
-            'content': content,
-        }
-        self.messages.append(message)
+    def chat(self, user_message, params=None):
+        self.messages.append(user_message)
         return self.create_completion(params=params)
 
     def create_completion(self, params=None) -> dict:
