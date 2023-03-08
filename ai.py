@@ -167,7 +167,7 @@ def print_info(session):
 {magenta_hl(" execution info ")}:
 {c('Config')}
     {c('api_base_url')}: {Config.api_base_url}
-    {c('api_key')}: {Config.api_key[7:]}***{Config.api_key[-4:]}
+    {c('api_key')}: {Config.api_key[:5]}******{Config.api_key[-2:]}
     {c('default_model')}: {Config.default_model}
     {c('default_params')}: {json.dumps(Config.default_params)}
 {c('ChatSession')}
