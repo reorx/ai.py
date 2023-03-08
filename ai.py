@@ -16,6 +16,7 @@ __version__ = '0.1.0'
 class Config:
     api_key = None
     api_base_url = 'https://api.openai.com/v1/'
+    default_model = 'gpt-3.5-turbo'
     default_params = {
         # 'max_tokens': 80,
         # 'temperature': 0.8,
@@ -23,7 +24,6 @@ class Config:
         # 'frequency_penalty': 0.5,
         # 'presence_penalty': 0,
     }
-    default_model = 'gpt-3.5-turbo'
     timeout = None
     verbose = False
     debug = False
@@ -90,6 +90,7 @@ def main():
     # create session
     session = ChatSession(Config.api_base_url, Config.api_key, messages=pm.new_messages(args.system))
     if args.verbose:
+        print_config()
         for i in session.messages:
             print_message(i)
 
@@ -101,8 +102,11 @@ def main():
 
 
 def chat_once(session, pm, prompt):
+    user_message = pm.new_user_message(prompt)
+    if Config.verbose:
+        print_message(user_message)
     try:
-        res_message = session.chat(pm.new_user_message(prompt))
+        res_message = session.chat(user_message)
     except TimeoutError:
         print(red('ERROR: timeout'))
         return
@@ -141,6 +145,18 @@ def print_message(message):
 
     print(s + '\n')
 
+
+def print_config():
+    c = magenta
+    s = f"""\
+{magenta_hl(" Config ")}:
+    {c('api_base_url')}: {Config.api_base_url}
+    {c('api_key')}: {Config.api_key[7:]}***{Config.api_key[-4:]}
+    {c('default_model')}: {Config.default_model}
+    {c('default_params')}: {json.dumps(Config.default_params)}
+    {c('timeout')}: {Config.timeout}\
+"""
+    print(s + '\n')
 
 # Prompts #
 
