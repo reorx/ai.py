@@ -42,7 +42,7 @@ def main():
     parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help="your prompt, leave it empty to run REPL")
 
     # options
-    parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_cli_prompts.json")
+    parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_py_prompts.json")
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show params and role name")
     parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
@@ -56,17 +56,17 @@ def main():
 
     # config
     # load config from file
-    config_file = os.path.join(home, '.ai_cli_config.json')
+    config_file = os.path.join(home, '.ai_py_config.json')
     if os.path.exists(config_file):
         with open(config_file) as f:
             config = json.load(f)
         for k, v in config.items():
             setattr(Config, k, v)
     # override config from env
-    env_api_key = os.environ.get('AI_CLI_API_KEY')
+    env_api_key = os.environ.get('AI_PY_API_KEY')
     if env_api_key:
         Config.api_key = env_api_key
-    env_api_base_url = os.environ.get('AI_CLI_API_BASE_URL')
+    env_api_base_url = os.environ.get('AI_PY_API_BASE_URL')
     if env_api_base_url:
         Config.api_base_url = env_api_base_url
     # override config from args
@@ -77,11 +77,11 @@ def main():
     # check config
     if not Config.api_key:
         print(red('ERROR: missing API key'))
-        print(f'Please set the environment variable AI_CLI_API_KEY or set api_key in {config_file}')
+        print(f'Please set the environment variable AI_PY_API_KEY or set api_key in {config_file}')
         exit(1)
     if not Config.api_base_url:
         print(red('ERROR: missing API base url'))
-        print(f'Please set the environment variable AI_CLI_API_BASE_URL or set api_base_url in {config_file}')
+        print(f'Please set the environment variable AI_PY_API_BASE_URL or set api_base_url in {config_file}')
         exit(1)
 
     # load prompts
@@ -185,7 +185,7 @@ class PromptsManager:
         self.data = {}
 
     def load_from_file(self):
-        prompts_file = os.path.join(home, '.ai_cli_prompts.json')
+        prompts_file = os.path.join(home, '.ai_py_prompts.json')
         if os.path.exists(prompts_file):
             with open(prompts_file) as f:
                 self.data = json.load(f)
