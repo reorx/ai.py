@@ -43,6 +43,7 @@ def main():
 
     # options
     parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_cli_prompts.json")
+    parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show params and role name")
     parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
     # parser.add_argument('-i', '--stdin', action='store_true', help="read prompt from stdin")
@@ -88,9 +89,9 @@ def main():
     pm.load_from_file()
 
     # create session
-    session = ChatSession(Config.api_base_url, Config.api_key, messages=pm.new_messages(args.system))
+    session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation, messages=pm.new_messages(args.system))
     if args.verbose:
-        print_config()
+        print_info(session)
         for i in session.messages:
             print_message(i)
 
@@ -103,18 +104,32 @@ def main():
 
 def chat_once(session, pm, prompt):
     user_message = pm.new_user_message(prompt)
-    if Config.verbose:
-        print_message(user_message)
     try:
         res_message = session.chat(user_message)
     except TimeoutError:
         print(red('ERROR: timeout'))
         return
+    except KeyboardInterrupt:
+        print('chat interrupted')
+        return
+    if Config.verbose:
+        print_message(user_message)
     print_message(res_message)
 
 
 def repl(session, pm):
-    pass
+    green_start = esc(32)
+    while True:
+        try:
+            prompt = input(f'{green_start}> ')
+        except (KeyboardInterrupt, EOFError):
+            print(END, end='')
+            print('exit')
+            break
+        print(END, end='')
+        if prompt in ['exit', 'quit']:
+            break
+        chat_once(session, pm, prompt)
 
 
 inline_code_re = re.compile(r'`([^\n`]+)`')
@@ -124,7 +139,7 @@ multiline_code_re = re.compile(r'```\w*\n([^`]+)\n```')
 def print_message(message):
     role = message['role']
     role_with_padding = f' {role} '
-    content = message['content']
+    content = message['content'].strip()
 
     # find inline code and replace with color
     content = multiline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
@@ -146,15 +161,17 @@ def print_message(message):
     print(s + '\n')
 
 
-def print_config():
+def print_info(session):
     c = magenta
     s = f"""\
-{magenta_hl(" Config ")}:
+{magenta_hl(" execution info ")}:
+{c('Config')}
     {c('api_base_url')}: {Config.api_base_url}
     {c('api_key')}: {Config.api_key[7:]}***{Config.api_key[-4:]}
     {c('default_model')}: {Config.default_model}
     {c('default_params')}: {json.dumps(Config.default_params)}
-    {c('timeout')}: {Config.timeout}\
+{c('ChatSession')}
+    {c('conversation')}: {session.conversation}\
 """
     print(s + '\n')
 
@@ -202,18 +219,23 @@ class PromptsManager:
 # Session #
 
 class ChatSession:
-    def __init__(self, api_base_url, api_key, messages=None):
+    def __init__(self, api_base_url, api_key, conversation=False, messages=None):
         self.api_base_url = api_base_url
         self.api_key = api_key
+        self.conversation = conversation
         if messages is None:
             messages = []
         self.messages = messages
 
     def chat(self, user_message, params=None):
         self.messages.append(user_message)
-        return self.create_completion(params=params)
+        res_message, data, messages = self.create_completion(params=params)
+        if Config.verbose:
+            print(blue(f'stat: sent_messages={len(messages)} total_messages={len(self.messages)} total_tokens={data["usage"]["total_tokens"]}'))
+        self.messages.append(res_message)
+        return res_message
 
-    def create_completion(self, params=None) -> dict:
+    def create_completion(self, params=None) -> tuple[dict, dict, list]:
         url = f'{self.api_base_url}chat/completions'
         headers = {
             # if User-Agent is not added, cloudflare workers will return 403, no idea why it happens
@@ -221,12 +243,19 @@ class ChatSession:
             'Authorization': f'Bearer {self.api_key}',
         }
 
+        if self.conversation:
+            messages = self.messages
+        else:
+            messages = list(filter(lambda x: x['role'] == 'system', self.messages))
+            # assume the last message is always the user message
+            messages.append(self.messages[-1])
+
         if not params:
             params = dict(Config.default_params)
         data = dict(params)
         data.update(
             model=Config.default_model,
-            messages=self.messages,
+            messages=messages,
         )
 
         try:
@@ -236,8 +265,7 @@ class ChatSession:
         res_data = json.loads(body_b)
         res_message = res_data['choices'][0]['message']
 
-        self.messages.append(res_message)
-        return res_message
+        return res_message, res_data, messages
 
 
 # HTTP request #
