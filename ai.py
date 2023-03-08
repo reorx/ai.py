@@ -90,9 +90,10 @@ def main():
 
     # create session
     session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation, messages=pm.new_messages(args.system))
-    if args.verbose:
+    if Config.verbose:
         print_info(session)
-        for i in session.messages:
+    for i in session.messages:
+        if i['role'] == 'system' or Config.verbose:
             print_message(i)
 
     # call the function
