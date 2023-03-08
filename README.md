@@ -1,6 +1,8 @@
 # ai.py
 
-Single-file Python script that helps you get answers from ChatGPT API in the command line.
+A single-file Python script that interacts with ChatGPT API in the command-line.
+
+![](images/screenshot-repl.png)
 
 Features:
 - Save predefined prompts and refer to them with shortcuts
@@ -14,12 +16,16 @@ Just copy the script to a folder in `$PATH`, like `/usr/local/bin`. You can also
 
 ## Usage
 
-Paste your OpenAI API key to `~/.ai_cli_api_key`, or set it in `AI_CLI_API_KEY` environment variable.
+Paste your OpenAI API key to `~/.ai_cli_config.json`, or set it in `AI_CLI_API_KEY` environment variable.
+
+```bash
+echo '{"api_key":"<Your API key>"}' > ~/.ai_cli_config.json'
+```
 
 For detail usage of the script, please read the description of `./ai.py -h`:
 
 ```
-usage: ai.py [-h] [-s SYSTEM] [-v] [-d] [--version] [PROMPT]
+usage: ai [-h] [-s SYSTEM] [-c] [-v] [-d] [--version] [PROMPT]
 
 A simple CLI for ChatGPT API
 
@@ -32,9 +38,13 @@ options:
                         system message to use at the beginning of the
                         conversation. if starts with @, the message will be
                         located through ~/.ai_cli_prompts.json
+  -c, --conversation    enable conversation, which means all the messages will
+                        be sent to the API, not just the last one. This is
+                        only useful to REPL
   -v, --verbose         verbose mode, show params and role name
   -d, --debug           debug mode, enable logging
   --version             show program's version number and exit
+
 ```
 
 ### One-off query
