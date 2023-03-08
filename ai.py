@@ -14,7 +14,8 @@ __version__ = '0.1.0'
 
 
 class Config:
-    api_key = os.environ.get('AI_CLI_API_KEY')
+    api_key = None
+    api_base_url = 'https://api.openai.com/v1/'
     default_params = {
         # 'max_tokens': 80,
         # 'temperature': 0.8,
@@ -53,27 +54,41 @@ def main():
     args = parser.parse_args()
 
     # config
+    # load config from file
+    config_file = os.path.join(home, '.ai_cli_config.json')
+    if os.path.exists(config_file):
+        with open(config_file) as f:
+            config = json.load(f)
+        for k, v in config.items():
+            setattr(Config, k, v)
+    # override config from env
+    env_api_key = os.environ.get('AI_CLI_API_KEY')
+    if env_api_key:
+        Config.api_key = env_api_key
+    env_api_base_url = os.environ.get('AI_CLI_API_BASE_URL')
+    if env_api_base_url:
+        Config.api_base_url = env_api_base_url
+    # override config from args
     Config.verbose = args.verbose
     Config.debug = args.debug
     if Config.debug:
         logging.basicConfig(level=logging.DEBUG)
+    # check config
     if not Config.api_key:
-        # try to load from file ~/.ai_cli_api_key
-        api_key_file = os.path.join(home, '.ai_cli_api_key')
-        if os.path.exists(api_key_file):
-            with open(api_key_file) as f:
-                Config.api_key = f.read().strip()
-        else:
-            print(red('ERROR: missing API key'))
-            print('Please set the environment variable AI_CLI_API_KEY or create a file ~/.ai_cli_api_key')
-            exit(1)
+        print(red('ERROR: missing API key'))
+        print(f'Please set the environment variable AI_CLI_API_KEY or set api_key in {config_file}')
+        exit(1)
+    if not Config.api_base_url:
+        print(red('ERROR: missing API base url'))
+        print(f'Please set the environment variable AI_CLI_API_BASE_URL or set api_base_url in {config_file}')
+        exit(1)
 
     # load prompts
     pm = PromptsManager()
     pm.load_from_file()
 
     # create session
-    session = ChatSession(Config.api_key, messages=pm.new_messages(args.system))
+    session = ChatSession(Config.api_base_url, Config.api_key, messages=pm.new_messages(args.system))
     if args.verbose:
         for i in session.messages:
             print_message(i)
@@ -170,10 +185,9 @@ class PromptsManager:
 
 # Session #
 
-OPENAI_BASE_URL = 'https://api.openai.com/v1/'
-
 class ChatSession:
-    def __init__(self, api_key, messages=None):
+    def __init__(self, api_base_url, api_key, messages=None):
+        self.api_base_url = api_base_url
         self.api_key = api_key
         if messages is None:
             messages = []
@@ -184,8 +198,10 @@ class ChatSession:
         return self.create_completion(params=params)
 
     def create_completion(self, params=None) -> dict:
-        url = f'{OPENAI_BASE_URL}chat/completions'
+        url = f'{self.api_base_url}chat/completions'
         headers = {
+            # if User-Agent is not added, cloudflare workers will return 403, no idea why it happens
+            'User-Agent': 'reorx/ai',
             'Authorization': f'Bearer {self.api_key}',
         }
 
@@ -218,7 +234,7 @@ def http_request(method, url, params=None, headers=None, data: Optional[Union[di
     if data and isinstance(data, (dict, list)):
         data = json.dumps(data, ensure_ascii=False).encode()
         if 'Content-Type' not in headers:
-            headers['Content-Type'] = 'application/json; charset=utf-8'
+            headers['Content-Type'] = 'application/json'
     if logger:
         logger.debug(f'request: {method} {url}\nheaders: {headers}\ndata: {data}')
     req = request.Request(url, method=method, headers=headers, data=data)
