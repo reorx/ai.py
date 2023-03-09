@@ -5,14 +5,21 @@ A single-file Python script that interacts with ChatGPT API in the command-line.
 ![](images/screenshot-repl.png)
 
 Features:
-- Save predefined prompts and refer to them with shortcuts
-- Highlight code in the output
-- Support one-off query and conversation (coming soon)
-- Pass messages through stdin
+- Use shortcuts to access predefined prompts
+- Highlight code in output
+- Support one-shot queries and conversations
+
 
 ## Install
 
 Just copy the script to a folder in `$PATH`, like `/usr/local/bin`. You can also change its name to `ai` to get ride of the `.py` extension.
+
+Here's a command that can directly install the script into your system:
+
+```
+curl https://raw.githubusercontent.com/reorx/ai.py/master/ai.py -o /usr/local/bin/ai && chmod +x /usr/local/bin/ai
+```
+
 
 ## Usage
 
@@ -44,15 +51,35 @@ options:
   -v, --verbose         verbose mode, show params and role name
   -d, --debug           debug mode, enable logging
   --version             show program's version number and exit
-
 ```
 
 ### One-off query
 
-Pass the message as the first argument:
+Pass the prompt as the first argument:
 
 ```
 ./ai.py 'hello world'
+```
+
+You can also pass the prompt through a pipe (`|`):
+
+```
+head README.md | ./ai.py 'Proofreading the following text:'
+```
+
+### REPL
+
+Run without argument for [Read–eval–print loop](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop):
+
+```
+./ai.py
+```
+
+By default only the last message and the system message are sent to the API,
+to enable conversation, add `-c` argument:
+
+```
+./ai.py -c
 ```
 
 ### System message
@@ -64,19 +91,49 @@ You can pass a system message to define the behavior for the assistant:
 ```
 
 You can also save your predefined system messages in `~/.ai_py_promots.json`
-and refer them with `@` at the beginning.
+and refer them with `@` at the beginning, this will be covered in the next section.
 
-```
-cat ~/.ai_py_prompts.json
+
+### Prompt shortcuts
+
+You can predefine prompts in `~/.ai_py_prompts.json` and refer to them by using `@` as a prefix.
+This works for both system messages and user messages.
+
+Suppose your `~/.ai_py_prompts.json` looks like this:
+
+```json
 {
   "system": {
     "cli": "As a technology assistant with expertise in command line, answer questions in simple and short words for users who have a high-level background. Provide only one example, and explain as less as possible."
+  },
+  "user": {
+    "native": "Paraphrase the following sentences to make it more native:\n",
+    "revise": "Revise the following sentences to make them more clear concise and coherent:\n",
+    "": ""
   }
 }
+```
 
-./ai.py -s @cli 'MacOS grep and replace a string for all .py files in a folder recursively'
+Then you can use the `cli` prompt shortcut in system message by:
+
+```
+./ai.py -s @cli
+```
+
+and use the `native` or `revise` prompt shortcut in user message by:
+
+```
+./ai.py '@native its nice know you'
+
+It's great to get to know you.
 ```
 
 ### Verbose mode
 
 Add `-v` to print role name and parameters used in the API call.
+
+<details>
+  <summary>Screenshot</summary>
+
+  ![](screenshot-repl-verbose.png)
+</details>
