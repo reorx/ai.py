@@ -243,7 +243,7 @@ class ChatSession:
         self.messages.append(user_message)
         res_message, data, messages = self.create_completion(params=params)
         if Config.verbose:
-            print(blue(f'stat: sent_messages={len(messages)} total_messages={len(self.messages)} total_tokens={data["usage"]["total_tokens"]}'))
+            print(blue(f'stat: sent_messages={len(messages)} total_messages={len(self.messages)} total_tokens={data["usage"]["total_tokens"]} tokens_price=~${"{:.6f}".format(data["usage"]["total_tokens"]/1000*0.002)}'))
         self.messages.append(res_message)
         return res_message
 
