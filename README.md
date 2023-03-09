@@ -76,7 +76,8 @@ Run without argument for [Read–eval–print loop](https://en.wikipedia.org/wik
 ```
 
 By default only the last message and the system message are sent to the API,
-to enable conversation, add `-c` argument:
+if you want it to remember all the context (i.e. send all the messages in each chat),
+add `-c` argument to enable conversation:
 
 ```
 ./ai.py -c
