@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import re
+import sys
 import json
 import logging
 import argparse
@@ -46,7 +47,6 @@ def main():
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show params and role name")
     parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
-    # parser.add_argument('-i', '--stdin', action='store_true', help="read prompt from stdin")
 
     # --version
     parser.add_argument('--version', action='version',
@@ -83,6 +83,12 @@ def main():
         print(red('ERROR: missing API base url'))
         print(f'Please set the environment variable AI_PY_API_BASE_URL or set api_base_url in {config_file}')
         exit(1)
+
+    # only read stdin when it's not a tty (which means in a pipe) to ensure it won't affect input()
+    if not sys.stdin.isatty():
+        stdin = sys.stdin.read().strip()
+        if stdin:
+            args.prompt += stdin
 
     # load prompts
     pm = PromptsManager()
@@ -142,9 +148,10 @@ def print_message(message):
     role_with_padding = f' {role} '
     content = message['content'].strip()
 
-    # find inline code and replace with color
-    content = multiline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
-    content = inline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
+    # find inline code and replace with color for non-user messages
+    if role != 'user':
+        content = multiline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
+        content = inline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
 
     content_color = lambda s: s
     role_color = white_hl
@@ -190,6 +197,7 @@ class PromptsManager:
         if os.path.exists(prompts_file):
             with open(prompts_file) as f:
                 self.data = json.load(f)
+        lg.debug(f'prompts loaded: {self.data}')
 
     def get(self, role, name, default=None):
         return self.data.get(role, {})[name]
