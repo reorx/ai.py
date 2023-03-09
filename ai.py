@@ -130,10 +130,13 @@ def repl(session, pm):
         try:
             prompt = input(f'{green_start}> ')
         except (KeyboardInterrupt, EOFError):
-            print(END)
+            print(END, end='')
             print('exit')
             break
-        print(END)
+        print(END, end='')
+        if not prompt:
+            continue
+        print()
         if prompt in ['exit', 'quit']:
             break
         chat_once(session, pm, prompt)
