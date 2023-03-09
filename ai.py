@@ -40,12 +40,12 @@ def main():
     parser = argparse.ArgumentParser(description="A simple CLI for ChatGPT API", epilog="", formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # arguments
-    parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help="your prompt, leave it empty to run REPL")
+    parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help="your prompt, leave it empty to run REPL. you can use @ to load prompt from ~/.ai_py_prompts.json")
 
     # options
     parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_py_prompts.json")
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
-    parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show params and role name")
+    parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show execution info and role in the message")
     parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
 
     # --version
