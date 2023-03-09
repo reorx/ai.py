@@ -88,7 +88,7 @@ def main():
     if not sys.stdin.isatty():
         stdin = sys.stdin.read().strip()
         if stdin:
-            args.prompt += stdin
+            args.prompt = f'{args.prompt} {stdin}'
 
     # load prompts
     pm = PromptsManager()
