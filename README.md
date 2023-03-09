@@ -135,5 +135,5 @@ Add `-v` to print role name and parameters used in the API call.
 <details>
   <summary>Screenshot</summary>
 
-  ![](screenshot-repl-verbose.png)
+  ![](images/screenshot-repl-verbose.png)
 </details>
