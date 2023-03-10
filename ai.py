@@ -40,15 +40,14 @@ def main():
     parser = argparse.ArgumentParser(description="A simple CLI for ChatGPT API", epilog="", formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # arguments
-    parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help="your prompt, leave it empty to run REPL")
+    parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help="your prompt, leave it empty to run REPL. you can use @ to load prompt from ~/.ai_py_prompts.json")
 
     # options
     parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_py_prompts.json")
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
-    parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show params and role name")
-    parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
+    parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show execution info and role in the message")
     parser.add_argument('-t', '--tokens', action='store_true', help="show a breakdown of the tokens used in the prompt and in the response")
-    # parser.add_argument('-i', '--stdin', action='store_true', help="read prompt from stdin")
+    parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
 
     # --version
     parser.add_argument('--version', action='version',
@@ -87,15 +86,22 @@ def main():
         print(f'Please set the environment variable AI_PY_API_BASE_URL or set api_base_url in {config_file}')
         exit(1)
 
+    # only read stdin when it's not a tty (which means in a pipe) to ensure it won't affect input()
+    if not sys.stdin.isatty():
+        stdin = sys.stdin.read().strip()
+        if stdin:
+            args.prompt = f'{args.prompt} {stdin}'
+
     # load prompts
     pm = PromptsManager()
     pm.load_from_file()
 
     # create session
     session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation, messages=pm.new_messages(args.system))
-    if args.verbose:
+    if Config.verbose:
         print_info(session)
-        for i in session.messages:
+    for i in session.messages:
+        if i['role'] == 'system' or Config.verbose:
             print_message(i)
 
     # call the function
@@ -130,6 +136,9 @@ def repl(session, pm):
             print('exit')
             break
         print(END, end='')
+        if not prompt:
+            continue
+        print()
         if prompt in ['exit', 'quit']:
             break
         chat_once(session, pm, prompt)
@@ -144,9 +153,10 @@ def print_message(message):
     role_with_padding = f' {role} '
     content = message['content'].strip()
 
-    # find inline code and replace with color
-    content = multiline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
-    content = inline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
+    # find inline code and replace with color for non-user messages
+    if role != 'user':
+        content = multiline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
+        content = inline_code_re.sub(lambda m: m.group(0).replace(m.group(1), cyan(m.group(1))), content)
 
     content_color = lambda s: s
     role_color = white_hl
@@ -192,6 +202,7 @@ class PromptsManager:
         if os.path.exists(prompts_file):
             with open(prompts_file) as f:
                 self.data = json.load(f)
+        lg.debug(f'prompts loaded: {self.data}')
 
     def get(self, role, name, default=None):
         return self.data.get(role, {})[name]
