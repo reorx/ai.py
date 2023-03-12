@@ -244,7 +244,7 @@ class ChatSession:
     def chat(self, user_message, params=None):
         self.messages.append(user_message)
         res_message, data, messages = self.create_completion(params=params)
-                if Config.verbose:
+        if Config.verbose:
             print(blue(f'stat: sent_messages={len(messages)} total_messages={len(self.messages)}  price=~${"{:.6f}".format(data["usage"]["total_tokens"]/1000*0.002)}'))
         if Config.tokens:
             print(blue(f'tokens: prompt_tokens={data["usage"]["prompt_tokens"]} completion_tokens={data["usage"]["completion_tokens"]} total_tokens={data["usage"]["total_tokens"]}'))
