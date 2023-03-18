@@ -26,7 +26,7 @@ curl https://raw.githubusercontent.com/reorx/ai.py/master/ai.py -o /usr/local/bi
 Paste your OpenAI API key to `~/.ai_py_config.json`, or set it in `AI_PY_API_KEY` environment variable.
 
 ```bash
-echo '{"api_key":"<Your API key>"}' > ~/.ai_py_config.json'
+echo '{"api_key":"<Your API key>"}' > ~/.ai_py_config.json
 ```
 
 For detail usage of the script, please read the description of `./ai.py -h`:
