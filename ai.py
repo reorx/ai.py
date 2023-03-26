@@ -11,7 +11,7 @@ from urllib.error import HTTPError
 from http.client import HTTPResponse, IncompleteRead
 
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 
 class Config:
@@ -98,7 +98,9 @@ def main():
     pm.load_from_file()
 
     # create session
-    session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation, messages=pm.new_messages(args.system))
+    session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation)
+    if args.system:
+        session.set_system_message(pm.new_message('system', args.system))
     if Config.verbose:
         print_info(session)
     for i in session.messages:
@@ -113,7 +115,7 @@ def main():
 
 
 def chat_once(session, pm, prompt):
-    user_message = pm.new_user_message(prompt)
+    user_message = pm.new_message('user', prompt)
     try:
         res_message = session.chat(user_message)
     except TimeoutError:
@@ -142,7 +144,72 @@ def repl(session, pm):
         print()
         if prompt in ['exit', 'quit']:
             break
-        chat_once(session, pm, prompt)
+
+        # special commands
+        if prompt.startswith('!'):
+            try:
+                run_command(session, pm, prompt)
+            except Exception as e:
+                print(red(f'command failed: {e}'))
+        else:
+            chat_once(session, pm, prompt)
+
+
+command_set_keys = ['model', 'params', 'system', 'conversation', 'verbose']
+
+def run_command(session, pm, prompt):
+    sp = prompt.split(' ')
+    command = sp[0][1:]
+    args = sp[1:]
+
+    success_color = magenta
+    if command == 'set':
+        assert len(args) > 1, f'set command requires at least 2 arguments, got {args}'
+        set_key = args[0]
+        assert set_key in command_set_keys, f'set key is not one of {command_set_keys}'
+
+        result = ''
+        # !set verbose True
+        if set_key == 'verbose':
+            Config.verbose = str_to_value(args[1], bool)
+            result = f'Config.verbose = {Config.verbose}'
+        # !set conversation True
+        elif set_key == 'conversation':
+            session.conversation = str_to_value(args[1], bool)
+            result = f'session.conversation = {session.conversation}'
+        # !set system you are a poet
+        elif set_key == 'system':
+            session.set_system_message(pm.new_message('system', ' '.join(args[1:])))
+            result = f'session.messages[0] = {session.messages[0]}'
+        # !set params temperature 0.5
+        elif set_key == 'params':
+            session.params[args[1]] = str_to_value(args[2])
+            result = f'session.params = {session.params}'
+        # !set model gpt-4
+        elif set_key == 'model':
+            session.model = args[1]
+            result = f'session.model = {session.model}'
+        if result:
+            print(success_color(result))
+    elif command == 'info':
+        print_info(session)
+    else:
+        raise Exception(f'unknown command: {command}')
+
+
+def str_to_value(s, assert_type=None):
+    v = s
+    if s == 'True':
+        v = True
+    elif s == 'False':
+        v = False
+    elif re.search(r'^\d+$', s):
+        v = int(s)
+    elif re.search(r'^\d+\.\d+$', s):
+        v = float(s)
+    if assert_type is not None:
+        assert isinstance(v, assert_type), f'str_to_value failed: {s} is not of type {assert_type}'
+    return v
 
 
 inline_code_re = re.compile(r'`([^\n`]+)`')
@@ -189,10 +256,10 @@ def print_info(session):
 """
     print(s + '\n')
 
+
 # Prompts #
 
 shortcut_re = re.compile(r'@(\w+)')
-
 
 class PromptsManager:
     def __init__(self):
@@ -216,25 +283,17 @@ class PromptsManager:
                 return m.group(0)
         return shortcut_re.sub(handle_match, prompt)
 
-    def new_messages(self, system_prompt):
-        if system_prompt:
-            return [{
-                'role': 'system',
-                'content': self.format_prompt(system_prompt, 'system'),
-            }]
-        return []
-
-    def new_user_message(self, prompt):
+    def new_message(self, role, prompt):
         return {
-            'role': 'user',
-            'content': self.format_prompt(prompt, 'user'),
+            'role': role,
+            'content': self.format_prompt(prompt, role),
         }
 
 
 # Session #
 
 class ChatSession:
-    def __init__(self, api_base_url, api_key, conversation=False, messages=None):
+    def __init__(self, api_base_url, api_key, conversation=False, messages=None, model=None, params=None):
         self.api_base_url = api_base_url
         self.api_key = api_key
         self.conversation = conversation
@@ -242,9 +301,28 @@ class ChatSession:
             messages = []
         self.messages = messages
 
-    def chat(self, user_message, params=None):
+        if not model:
+            model = Config.default_model
+        self.model = model
+
+        if not params:
+            params = Config.default_params
+        self.params = params
+
+    def set_system_message(self, system_message):
+        """Set the system message to the first system message in the session, or insert a new system message if none exists."""
+        messages = self.filter_system_messages()
+        if messages:
+            messages[0]['content'] = system_message['content']
+        else:
+            self.messages.insert(0, system_message)
+
+    def filter_system_messages(self):
+        return list(filter(lambda x: x['role'] == 'system', self.messages))
+
+    def chat(self, user_message, params_override=None):
         self.messages.append(user_message)
-        res_message, data, messages = self.create_completion(params=params)
+        res_message, data, messages = self.create_completion(params_override=params_override)
         if Config.verbose:
             print(blue(f'stat: sent_messages={len(messages)} total_messages={len(self.messages)}  price=~${"{:.6f}".format(data["usage"]["total_tokens"]/1000*0.002)}'))
         if Config.show_tokens:
@@ -252,7 +330,7 @@ class ChatSession:
         self.messages.append(res_message)
         return res_message
 
-    def create_completion(self, params=None) -> tuple[dict, dict, list]:
+    def create_completion(self, params_override=None) -> tuple[dict, dict, list]:
         url = f'{self.api_base_url}chat/completions'
         headers = {
             # if User-Agent is not added, cloudflare workers will return 403, no idea why it happens
@@ -263,15 +341,15 @@ class ChatSession:
         if self.conversation:
             messages = self.messages
         else:
-            messages = list(filter(lambda x: x['role'] == 'system', self.messages))
+            messages = self.filter_system_messages()
             # assume the last message is always the user message
             messages.append(self.messages[-1])
 
-        if not params:
-            params = dict(Config.default_params)
-        data = dict(params)
+        data = dict(self.params)
+        if params_override:
+            data.update(params_override)
         data.update(
-            model=Config.default_model,
+            model=self.model,
             messages=messages,
         )
 

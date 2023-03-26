@@ -8,6 +8,7 @@ Features:
 - Use shortcuts to access predefined prompts
 - Highlight code in output
 - Support one-shot queries and conversations
+- Use special command like `!set` to control the behavior when chatting
 
 
 ## Install
