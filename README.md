@@ -38,12 +38,15 @@ echo '{"api_key":"<Your API key>"}' > ~/.ai_py_config.json
 For detail usage of the script, please read the description of `./ai.py -h`:
 
 ```
-usage: ai [-h] [-s SYSTEM] [-c] [-v] [-d] [--version] [PROMPT]
+usage: ai [-h] [-s SYSTEM] [-c] [--history HISTORY] [-w] [-v] [-t] [-d]
+          [--version]
+          [PROMPT]
 
 A simple CLI for ChatGPT API
 
 positional arguments:
-  PROMPT                your prompt, leave it empty to run REPL
+  PROMPT                your prompt, leave it empty to run REPL. you can use @
+                        to load prompt from ~/.ai_py_prompts.json
 
 options:
   -h, --help            show this help message and exit
@@ -54,7 +57,12 @@ options:
   -c, --conversation    enable conversation, which means all the messages will
                         be sent to the API, not just the last one. This is
                         only useful to REPL
-  -v, --verbose         verbose mode, show params and role name
+  --history HISTORY     load the history from a JSON file.
+  -w, --write-history   write new messages to --history file after each chat.
+  -v, --verbose         verbose mode, show execution info and role in the
+                        message
+  -t, --show-tokens     show a breakdown of the tokens used in the prompt and
+                        in the response
   -d, --debug           debug mode, enable logging
   --version             show program's version number and exit
 ```
@@ -158,3 +166,4 @@ Here's a list of available commands:
   - `params`: set the parmeters for the ChatGPT API. e.g. `!set params temperature 0.5`
   - `model`: set the model to use. e.g. `!set model gpt-4`
 - `!info`: print the execution info
+- `!write-history`: write current messages to history file. e.g. `!write-history history.json`

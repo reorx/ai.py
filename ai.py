@@ -11,7 +11,7 @@ from urllib.error import HTTPError
 from http.client import HTTPResponse, IncompleteRead
 
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 
 class Config:
