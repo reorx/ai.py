@@ -27,6 +27,7 @@ class Config:
     }
     timeout = None
     verbose = False
+    show_tokens = False
     debug = False
 
 
@@ -46,7 +47,7 @@ def main():
     parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_py_prompts.json")
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show execution info and role in the message")
-    parser.add_argument('-t', '--tokens', action='store_true', help="show a breakdown of the tokens used in the prompt and in the response")
+    parser.add_argument('-t', '--show-tokens', action='store_true', help="show a breakdown of the tokens used in the prompt and in the response")
     parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
 
     # --version
@@ -73,7 +74,7 @@ def main():
     # override config from args
     Config.verbose = args.verbose
     Config.debug = args.debug
-    Config.tokens = args.tokens
+    Config.show_tokens = args.show_tokens
     if Config.debug:
         logging.basicConfig(level=logging.DEBUG)
     # check config
@@ -121,7 +122,7 @@ def chat_once(session, pm, prompt):
     except KeyboardInterrupt:
         print('chat interrupted')
         return
-    if Config.verbose or Config.tokens:
+    if Config.verbose or Config.show_tokens:
         print_message(user_message)
     print_message(res_message)
 
@@ -246,7 +247,7 @@ class ChatSession:
         res_message, data, messages = self.create_completion(params=params)
         if Config.verbose:
             print(blue(f'stat: sent_messages={len(messages)} total_messages={len(self.messages)}  price=~${"{:.6f}".format(data["usage"]["total_tokens"]/1000*0.002)}'))
-        if Config.tokens:
+        if Config.show_tokens:
             print(blue(f'tokens: prompt_tokens={data["usage"]["prompt_tokens"]} completion_tokens={data["usage"]["completion_tokens"]} total_tokens={data["usage"]["total_tokens"]}'))
         self.messages.append(res_message)
         return res_message
