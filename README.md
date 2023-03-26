@@ -21,6 +21,11 @@ Here's a command that can directly install the script into your system:
 curl https://raw.githubusercontent.com/reorx/ai.py/master/ai.py -o /usr/local/bin/ai && chmod +x /usr/local/bin/ai
 ```
 
+You can also install it with pip or pipx:
+
+```
+pip install aidotpy
+```
 
 ## Usage
 
@@ -139,3 +144,17 @@ Add `-v` to print role name and parameters used in the API call.
 
   ![](images/screenshot-repl-verbose.png)
 </details>
+
+### Special commands
+
+You can use special commands to control the behavior of the script when running in REPL.
+
+Here's a list of available commands:
+
+- `!set <key> <value>`: set a key-value pair in the config, available keys are:
+  - `verbose`: set to `True` or `False`, e.g. `!set verbose True`
+  - `conversation`: set to `True` or `False`, e.g. `!set conversation True`
+  - `system`: set the system message. e.g. `!set system you are a poet`, `!set system @cli`
+  - `params`: set the parmeters for the ChatGPT API. e.g. `!set params temperature 0.5`
+  - `model`: set the model to use. e.g. `!set model gpt-4`
+- `!info`: print the execution info
