@@ -28,6 +28,8 @@ class Config:
     timeout = None
     verbose = False
     show_tokens = False
+    history = None
+    write_history = False
     debug = False
 
 
@@ -46,6 +48,8 @@ def main():
     # options
     parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_py_prompts.json")
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
+    parser.add_argument('--history', type=str, help="load the history from a JSON file.")
+    parser.add_argument('-w', '--write-history', action='store_true', help="write new messages to --history file after each chat.")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode, show execution info and role in the message")
     parser.add_argument('-t', '--show-tokens', action='store_true', help="show a breakdown of the tokens used in the prompt and in the response")
     parser.add_argument('-d', '--debug', action='store_true', help="debug mode, enable logging")
@@ -75,6 +79,11 @@ def main():
     Config.verbose = args.verbose
     Config.debug = args.debug
     Config.show_tokens = args.show_tokens
+    if args.write_history and not args.history:
+        print(red('ERROR: --write-history requires --history'))
+        exit(1)
+    Config.history = args.history
+    Config.write_history = args.write_history
     if Config.debug:
         logging.basicConfig(level=logging.DEBUG)
     # check config
@@ -99,6 +108,16 @@ def main():
 
     # create session
     session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation)
+    # load history
+    if args.history:
+        if os.path.exists(args.history):
+            session.messages = load_history(args.history)
+        else:
+            # when write_history is False, history must exist
+            if not args.write_history:
+                print(red(f'ERROR: history file not found: {args.history}'))
+                exit(1)
+    # set system message
     if args.system:
         session.set_system_message(pm.new_message('system', args.system))
     if Config.verbose:
@@ -128,6 +147,9 @@ def chat_once(session, pm, prompt):
         print_message(user_message)
     print_message(res_message)
 
+    if Config.write_history:
+        write_history(Config.history, session.messages)
+
 
 def repl(session, pm):
     green_start = esc(32)
@@ -153,6 +175,25 @@ def repl(session, pm):
                 print(red(f'command failed: {e}'))
         else:
             chat_once(session, pm, prompt)
+
+
+def load_history(history_file):
+    with open(history_file) as f:
+        messages = json.load(f)
+    # check messages schema
+    valid_keys = {'role', 'content'}
+    valid_roles = ['user', 'system', 'assistant']
+    for i in messages:
+        if set(i.keys()) != valid_keys:
+            raise ValueError(f'invalid message from history: {i}')
+        assert i['role'] in valid_roles, f'invalid role: {i["role"]}'
+        assert isinstance(i['content'], str), f'invalid content (wrong type): {i["content"]}'
+    return messages
+
+
+def write_history(history_file, messages):
+    with open(history_file, 'w') as f:
+        json.dump(messages, f, indent=2)
 
 
 command_set_keys = ['model', 'params', 'system', 'conversation', 'verbose']
@@ -193,6 +234,9 @@ def run_command(session, pm, prompt):
             print(success_color(result))
     elif command == 'info':
         print_info(session)
+    elif command == 'write-history':
+        write_history(args[0], session.messages)
+        print(success_color(f'wrote history to {args[0]}'))
     else:
         raise Exception(f'unknown command: {command}')
 
@@ -249,10 +293,11 @@ def print_info(session):
 {c('Config')}
     {c('api_base_url')}: {Config.api_base_url}
     {c('api_key')}: {Config.api_key[:5]}******{Config.api_key[-2:]}
-    {c('default_model')}: {Config.default_model}
-    {c('default_params')}: {json.dumps(Config.default_params)}
 {c('ChatSession')}
-    {c('conversation')}: {session.conversation}\
+    {c('model')}: {session.model}
+    {c('params')}: {json.dumps(session.params)}
+    {c('conversation')}: {session.conversation}
+    {c('messages')}: {len(session.messages)}\
 """
     print(s + '\n')
 
