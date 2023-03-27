@@ -77,7 +77,6 @@ Prompts file: {prompts_file} ({'exists' if prompts_file.exists() else 'not exist
     # config
     # load config from file
     if os.path.exists(config_file):
-        lg.debug(f'loading config from {config_file}')
         with open(config_file) as f:
             config = json.load(f)
         for k, v in config.items():

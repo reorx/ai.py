@@ -29,40 +29,35 @@ pip install aidotpy
 
 ## Usage
 
-Paste your OpenAI API key to `~/.ai_py_config.json`, or set it in `AI_PY_API_KEY` environment variable.
+Paste your OpenAI API key to `~/.config/ai-py/config.json`, or set it in `AI_PY_API_KEY` environment variable.
 
 ```bash
-echo '{"api_key":"<Your API key>"}' > ~/.ai_py_config.json
+mkdir -p ~/.config/ai-py
+echo '{"api_key":"<Your API key>"}' > ~/.config/ai-py/config.json
 ```
 
 For detail usage of the script, please read the description of `./ai.py -h`:
 
 ```
-usage: ai [-h] [-s SYSTEM] [-c] [--history HISTORY] [-w] [-v] [-t] [-d]
-          [--version]
-          [PROMPT]
+usage: ai [-h] [-s SYSTEM] [-c] [--history HISTORY] [-w] [-v] [-t] [-d] [--version] [PROMPT]
 
 A simple CLI for ChatGPT API
 
 positional arguments:
-  PROMPT                your prompt, leave it empty to run REPL. you can use @
-                        to load prompt from ~/.ai_py_prompts.json
+  PROMPT                your prompt, leave it empty to run REPL. you can use @ to load prompt
+                        from the prompts file.
 
 options:
   -h, --help            show this help message and exit
   -s SYSTEM, --system SYSTEM
-                        system message to use at the beginning of the
-                        conversation. if starts with @, the message will be
-                        located through ~/.ai_py_prompts.json
-  -c, --conversation    enable conversation, which means all the messages will
-                        be sent to the API, not just the last one. This is
-                        only useful to REPL
+                        system message to use at the beginning of the conversation. if starts
+                        with @, the message will be located through the prompts file
+  -c, --conversation    enable conversation, which means all the messages will be sent to the
+                        API, not just the last one. This is only useful to REPL
   --history HISTORY     load the history from a JSON file.
   -w, --write-history   write new messages to --history file after each chat.
-  -v, --verbose         verbose mode, show execution info and role in the
-                        message
-  -t, --show-tokens     show a breakdown of the tokens used in the prompt and
-                        in the response
+  -v, --verbose         verbose mode, show execution info and role in the message
+  -t, --show-tokens     show a breakdown of the tokens used in the prompt and in the response
   -d, --debug           debug mode, enable logging
   --version             show program's version number and exit
 ```
@@ -105,16 +100,16 @@ You can pass a system message to define the behavior for the assistant:
 ./ai.py -s 'You are a proofreader' 'its nice know you'
 ```
 
-You can also save your predefined system messages in `~/.ai_py_promots.json`
+You can also save your predefined system messages in `~/.config/ai-py/prompts.json`
 and refer them with `@` at the beginning, this will be covered in the next section.
 
 
 ### Prompt shortcuts
 
-You can predefine prompts in `~/.ai_py_prompts.json` and refer to them by using `@` as a prefix.
+You can predefine prompts in `~/.config/ai-py/prompts.json` and refer to them by using `@` as a prefix.
 This works for both system messages and user messages.
 
-Suppose your `~/.ai_py_prompts.json` looks like this:
+Suppose your `~/.config/ai-py/prompts.json` looks like this:
 
 ```json
 {
