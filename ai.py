@@ -5,6 +5,7 @@ import sys
 import json
 import logging
 import argparse
+import platform
 from pathlib import Path
 from typing import Optional, Tuple, Union, Callable
 from urllib import request, parse
@@ -36,7 +37,7 @@ class Config:
 
 lg = logging.getLogger(__name__)
 
-def get_xdg_home(xdg_type, prj_name):
+def get_xdg_home(prj_name: str):
     config_dir = os.getenv("XDG_CONFIG_HOME", "")
     xdg_is_unset = config_dir == ''
     # XDG_CONFIG_HOME must set with absolute path
@@ -52,9 +53,14 @@ def get_xdg_home(xdg_type, prj_name):
         config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
 
-def get_config_dir():
-    # TODO: Identify system type, Windows doesn't use Unix config home
-    return get_xdg_home("config", "ai-py")
+def get_config_dir() -> Path:
+    if platform.system() == "Windows":
+        pass
+    match platform.system():
+        case "Linux":
+            return get_xdg_home("ai-py")
+        case _:
+            return Path()
 
 
 def main():
