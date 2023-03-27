@@ -36,25 +36,13 @@ class Config:
 
 lg = logging.getLogger(__name__)
 
-def get_xdg_home(xdg_type):
-    xdg_env = ""
-    default = ""
-    if xdg_type == "config":
-        xdg_env = "XDG_CONFIG_HOME"
-        default = ".config"
-    elif xdg_type == "cache":
-        xdg_env = "XDG_CACHE_HOME"
-        default = ".cache"
-    else:
-        raise Exception("Unexpected type")
-
-    config_dir = os.getenv(xdg_env, "")
-    prj_name = "ai-py"
+def get_xdg_home(xdg_type, prj_name):
+    config_dir = os.getenv("XDG_CONFIG_HOME", "")
     xdg_is_unset = config_dir == ''
     # XDG_CONFIG_HOME must set with absolute path
     is_absolute_path = config_dir[0] == '/'
     if xdg_is_unset or (not is_absolute_path):
-        config_dir = Path.home().joinpath(default, prj_name)
+        config_dir = Path.home().joinpath(".config", prj_name)
         if not config_dir.exists():
             config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir
@@ -66,10 +54,7 @@ def get_xdg_home(xdg_type):
 
 def get_config_dir():
     # TODO: Identify system type, Windows doesn't use Unix config home
-    return get_xdg_home("config")
-
-def get_cache_dir():
-    return get_xdg_home("cache")
+    return get_xdg_home("config", "ai-py")
 
 
 def main():
@@ -345,7 +330,7 @@ class PromptsManager:
         self.data = {}
 
     def load_from_file(self):
-        prompts_file = get_cache_dir().joinpath('.ai_py_prompts.json')
+        prompts_file = get_config_dir().joinpath('.ai_py_prompts.json')
         if os.path.exists(prompts_file):
             with open(prompts_file) as f:
                 self.data = json.load(f)
