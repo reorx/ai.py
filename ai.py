@@ -5,6 +5,7 @@ import sys
 import json
 import logging
 import argparse
+from pathlib import Path
 from typing import Optional, Tuple, Union, Callable
 from urllib import request, parse
 from urllib.error import HTTPError
@@ -35,7 +36,40 @@ class Config:
 
 lg = logging.getLogger(__name__)
 
-home = os.path.expanduser('~')
+def get_xdg_home(xdg_type):
+    xdg_env = ""
+    default = ""
+    if xdg_type == "config":
+        xdg_env = "XDG_CONFIG_HOME"
+        default = ".config"
+    elif xdg_type == "cache":
+        xdg_env = "XDG_CACHE_HOME"
+        default = ".cache"
+    else:
+        raise Exception("Unexpected type")
+
+    config_dir = os.getenv(xdg_env, "")
+    prj_name = "ai-py"
+    xdg_is_unset = config_dir == ''
+    # XDG_CONFIG_HOME must set with absolute path
+    is_absolute_path = config_dir[0] == '/'
+    if xdg_is_unset or (not is_absolute_path):
+        config_dir = Path.home().joinpath(default, prj_name)
+        if not config_dir.exists():
+            config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir
+
+    config_dir = Path(config_dir).joinpath(prj_name)
+    if not config_dir.exists():
+        config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir
+
+def get_config_dir():
+    # TODO: Identify system type, Windows doesn't use Unix config home
+    return get_xdg_home("config")
+
+def get_cache_dir():
+    return get_xdg_home("cache")
 
 
 def main():
@@ -62,7 +96,7 @@ def main():
 
     # config
     # load config from file
-    config_file = os.path.join(home, '.ai_py_config.json')
+    config_file = get_config_dir().joinpath("config.json")
     if os.path.exists(config_file):
         with open(config_file) as f:
             config = json.load(f)
@@ -311,7 +345,7 @@ class PromptsManager:
         self.data = {}
 
     def load_from_file(self):
-        prompts_file = os.path.join(home, '.ai_py_prompts.json')
+        prompts_file = get_cache_dir().joinpath('.ai_py_prompts.json')
         if os.path.exists(prompts_file):
             with open(prompts_file) as f:
                 self.data = json.load(f)
