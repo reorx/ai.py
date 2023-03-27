@@ -35,42 +35,32 @@ class Config:
     debug = False
 
 
+class Consts:
+    project_dir_name = 'ai-py'
+    config_file = 'config.json'
+    prompts_file = 'prompts.json'
+
+
 lg = logging.getLogger(__name__)
-
-def get_xdg_home(prj_name: str):
-    config_dir = os.getenv("XDG_CONFIG_HOME", "")
-    xdg_is_unset = config_dir == ''
-    # XDG_CONFIG_HOME must set with absolute path
-    is_absolute_path = config_dir[0] == '/'
-    if xdg_is_unset or (not is_absolute_path):
-        config_dir = Path.home().joinpath(".config", prj_name)
-        if not config_dir.exists():
-            config_dir.mkdir(parents=True, exist_ok=True)
-        return config_dir
-
-    config_dir = Path(config_dir).joinpath(prj_name)
-    if not config_dir.exists():
-        config_dir.mkdir(parents=True, exist_ok=True)
-    return config_dir
-
-def get_config_dir() -> Path:
-    match platform.system():
-        case "Linux":
-            return get_xdg_home("ai-py")
-        case _:
-            script_dir = os.path.dirname(__file__)
-            return Path(script_dir).joinpath("config")
 
 
 def main():
+    config_dir = get_config_dir()
+    config_file = config_dir.joinpath(Consts.config_file)
+    prompts_file = config_dir.joinpath(Consts.prompts_file)
+
+    epilog = f"""\
+Config file: {config_file} ({'exists' if config_file.exists() else 'not exists'})
+Prompts file: {prompts_file} ({'exists' if prompts_file.exists() else 'not exists'})\
+"""
     # the `formatter_class` can make description & epilog show multiline
-    parser = argparse.ArgumentParser(description="A simple CLI for ChatGPT API", epilog="", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description="A simple CLI for ChatGPT API", epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # arguments
-    parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help="your prompt, leave it empty to run REPL. you can use @ to load prompt from ~/.ai_py_prompts.json")
+    parser.add_argument('prompt', metavar="PROMPT", type=str, nargs='?', help=f"your prompt, leave it empty to run REPL. you can use @ to load prompt from the prompts file. ")
 
     # options
-    parser.add_argument('-s', '--system', type=str, help="system message to use at the beginning of the conversation. if starts with @, the message will be located through ~/.ai_py_prompts.json")
+    parser.add_argument('-s', '--system', type=str, help=f"system message to use at the beginning of the conversation. if starts with @, the message will be located through the prompts file")
     parser.add_argument('-c', '--conversation', action='store_true', help="enable conversation, which means all the messages will be sent to the API, not just the last one. This is only useful to REPL")
     parser.add_argument('--history', type=str, help="load the history from a JSON file.")
     parser.add_argument('-w', '--write-history', action='store_true', help="write new messages to --history file after each chat.")
@@ -86,8 +76,8 @@ def main():
 
     # config
     # load config from file
-    config_file = get_config_dir().joinpath("config.json")
     if os.path.exists(config_file):
+        lg.debug(f'loading config from {config_file}')
         with open(config_file) as f:
             config = json.load(f)
         for k, v in config.items():
@@ -128,7 +118,7 @@ def main():
 
     # load prompts
     pm = PromptsManager()
-    pm.load_from_file()
+    pm.load_from_file(prompts_file)
 
     # create session
     session = ChatSession(Config.api_base_url, Config.api_key, conversation=args.conversation)
@@ -326,6 +316,25 @@ def print_info(session):
     print(s + '\n')
 
 
+def get_xdg_home() -> Path:
+    xdg_home = os.getenv("XDG_CONFIG_HOME", "")
+    # XDG_CONFIG_HOME must set with absolute path
+    if not xdg_home or not Path(xdg_home).is_absolute():
+        # use the standard XDG_CONFIG_HOME: ~/.config
+        xdg_home = Path.home().joinpath(".config")
+    return Path(xdg_home)
+
+
+def get_config_dir() -> Path:
+    match platform.system():
+        case "Linux" | "Darwin":
+            config_dir = get_xdg_home().joinpath(Consts.project_dir_name)
+        case _:
+            script_dir = os.path.dirname(__file__)
+            config_dir = Path(script_dir).joinpath("." + Consts.project_dir_name)
+    return config_dir
+
+
 # Prompts #
 
 shortcut_re = re.compile(r'@(\w+)')
@@ -334,12 +343,12 @@ class PromptsManager:
     def __init__(self):
         self.data = {}
 
-    def load_from_file(self):
-        prompts_file = get_config_dir().joinpath('.ai_py_prompts.json')
-        if os.path.exists(prompts_file):
-            with open(prompts_file) as f:
+    def load_from_file(self, file_path):
+        if os.path.exists(file_path):
+            lg.debug(f'load prompts from {file_path}')
+            with open(file_path) as f:
                 self.data = json.load(f)
-        lg.debug(f'prompts loaded: {self.data}')
+            lg.debug(f'prompts loaded: {self.data}')
 
     def get(self, role, name, default=None):
         return self.data.get(role, {})[name]
