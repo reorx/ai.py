@@ -54,8 +54,6 @@ def get_xdg_home(prj_name: str):
     return config_dir
 
 def get_config_dir() -> Path:
-    if platform.system() == "Windows":
-        pass
     match platform.system():
         case "Linux":
             return get_xdg_home("ai-py")
