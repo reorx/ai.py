@@ -58,7 +58,8 @@ def get_config_dir() -> Path:
         case "Linux":
             return get_xdg_home("ai-py")
         case _:
-            return Path()
+            script_dir = os.path.dirname(__file__)
+            return Path(script_dir).joinpath("config")
 
 
 def main():
