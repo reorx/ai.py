@@ -5,6 +5,8 @@ import sys
 import json
 import logging
 import argparse
+import platform
+from pathlib import Path
 from typing import Optional, Tuple, Union, Callable
 from urllib import request, parse
 from urllib.error import HTTPError
@@ -35,7 +37,29 @@ class Config:
 
 lg = logging.getLogger(__name__)
 
-home = os.path.expanduser('~')
+def get_xdg_home(prj_name: str):
+    config_dir = os.getenv("XDG_CONFIG_HOME", "")
+    xdg_is_unset = config_dir == ''
+    # XDG_CONFIG_HOME must set with absolute path
+    is_absolute_path = config_dir[0] == '/'
+    if xdg_is_unset or (not is_absolute_path):
+        config_dir = Path.home().joinpath(".config", prj_name)
+        if not config_dir.exists():
+            config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir
+
+    config_dir = Path(config_dir).joinpath(prj_name)
+    if not config_dir.exists():
+        config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir
+
+def get_config_dir() -> Path:
+    match platform.system():
+        case "Linux":
+            return get_xdg_home("ai-py")
+        case _:
+            script_dir = os.path.dirname(__file__)
+            return Path(script_dir).joinpath("config")
 
 
 def main():
@@ -62,7 +86,7 @@ def main():
 
     # config
     # load config from file
-    config_file = os.path.join(home, '.ai_py_config.json')
+    config_file = get_config_dir().joinpath("config.json")
     if os.path.exists(config_file):
         with open(config_file) as f:
             config = json.load(f)
@@ -311,7 +335,7 @@ class PromptsManager:
         self.data = {}
 
     def load_from_file(self):
-        prompts_file = os.path.join(home, '.ai_py_prompts.json')
+        prompts_file = get_config_dir().joinpath('.ai_py_prompts.json')
         if os.path.exists(prompts_file):
             with open(prompts_file) as f:
                 self.data = json.load(f)
