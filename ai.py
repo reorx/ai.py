@@ -19,7 +19,7 @@ __version__ = '0.3.0'
 class Config:
     api_key = None
     api_base_url = 'https://api.openai.com/v1/'
-    default_model = 'gpt-3.5-turbo'
+    default_model = 'gpt-4o'
     default_params = {
         # 'max_tokens': 80,
         # 'temperature': 0.8,
